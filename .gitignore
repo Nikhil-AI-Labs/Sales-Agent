@@ -1,0 +1,9 @@
+node_modules
+.next
+.next-local
+out
+data/runtime/*.json
+*.log
+.env
+.env.local
+.env*.local
