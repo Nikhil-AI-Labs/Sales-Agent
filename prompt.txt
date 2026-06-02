@@ -1,0 +1,824 @@
+now we have to make a agent for sales through whatsapp we are thinking to use Sarvam LLM for this as it is best for indian languages also for what's app connection we will use [https://apidocs.chakrahq.com/api-11312774](https://apidocs.chakrahq.com/api-11312774) this service provider to connect our what's app so go through its documentation and also read all these pdf and understand and our customer data is like this basically we have to make a agent that will use my whats through this chakrahq and using this my agent has to act like a sales man and he has to sell the fabric that is made in our factory so we have to this for that what i think that for each customer it has to maintain its chat history and all so that it can never lost his context with that particular person so basically assign a uuid for each customer and maintain its detail there and make sure llm does not halluicinate tell me how can we do this correctly tell me correctly do it as best as you can and tell me clearlysee all critical informations that you need first go through the owner ask to the owner for all critical information like before confirming the order price and all Critical rule: the customer-facing agent never says a price unless the backend has produced it. Critical rule 2: delivery promise must come only from production-capacity data, never from model text. Critical rule 3: meter weight, quality strength/elongation, and bill line-items must come from uploaded reference sheets, not from the LLM. which is this now i think this is enough to start also one more thing this is the data that i will provide you if you need something else then tell me now tell me all things that we need for this all data and see we are currently working on it so we can make it little light now tell me what things that you need i think this is enough because if you need to ask something then agent directly ask to the owner means i want to make a agent that is a continous learner means it keeps talking to the owner and learn what he need for this what you think how is this idea currently we are starting with this data only and make and as i said what ever extra information the agent needs it ask to owner and learn it means get to know how to do that and if agent think that it is a good information to remember then it will save it to its database i think this idea is good now update the plan what you said is correct but some corrections i made so update according to this and tell me correctly now how to proceed do it as best as you can do it very precisely and accuratelyThe Corrected Master Plan
+Your instinct is right. Self-learning agent that keeps asking the owner is the correct design. Here is the precise, updated system design from scratch, incorporating everything you said.
+
+Core Insight: Two Separate Agent Personas
+You have two different conversations running in parallel:
+
+Channel	Persona	Counterpart	Purpose
+Customer WhatsApp	Ravi (Sales Agent)	Buyer	Qualify → Quote → Close
+Owner WhatsApp / Dashboard	Guru (Learning Agent)	You (owner)	Ask missing info → Learn → Store in knowledge base
+Guru is the internal brain. Every time Ravi hits a wall — no meter weight table, no delivery slot, no quality chart — instead of hallucinating, Ravi flags it to Guru. Guru then asks you on WhatsApp or dashboard and stores the answer permanently in a knowledge_base table. Next time, the answer is there. This is how the system becomes progressively complete without needing everything upfront.
+
+What You Have Right Now (Sufficient to Start)
+Customer CRM seed data: GST, company name, contact person, phone numbers from SAMPLE_DATA.xlsx
+
+Product catalog: FIBC types, PP woven sacks/bags, fabric types from brochures
+
+Pricing rules: All size/grammage/color/lamination premiums you defined in the last message
+
+Business logic: Made-to-order first, trading agent for shortfall, 30-day order book rule
+
+Company identity: Anjani Interweave, Surat; contact details; machines
+
+This is enough to deploy a v1 that works on day 1. The gaps fill themselves as Guru asks you questions over time.
+
+What is Missing (Guru Will Ask You for These)
+These are the fields the system will flag as KNOWLEDGE_MISSING and ask you for:
+
+Meter weight table (size × grammage, laminated vs unlaminated)
+
+Quality chart (Janta/Regular/Silver/Gold/Platinum strength + elongation values)
+
+Bill/PI format (tax lines, GSTIN, HSN code, payment terms, bank details)
+
+Production capacity (looms, daily output in kg per size, current booking)
+
+Partner mill list for trading agent (name, phone, what they manufacture)
+
+Seasonal demand calendar (which clients buy in which months)
+
+Dispatch terms (minimum order, advance payment %, freight terms FOB/ex-factory)
+
+Rejection/replacement policy
+
+Guru maintains a simple knowledge_base table. Every learned answer has a key, a value, who provided it, and when. Ravi reads from this table before every response that needs that field.
+
+Revised System Architecture
+text
+┌────────────────────────────────────────────────────────────────────┐
+│                      CUSTOMER SIDE                                 │
+│   Customer WhatsApp → ChakraHQ → FastAPI /webhook/customer         │
+│                                         ↓                          │
+│                              RAVI (Sales Agent)                    │
+│                         [Sarvam-105B, temp=0.35]                   │
+│                                         ↓                          │
+│       ┌──────────────────────────────────────────────────┐        │
+│       │         SLOT FILLER STATE MACHINE                │        │
+│       │  size → grammage → quality → color →             │        │
+│       │  lamination → quantity → city → seasonal → GST   │        │
+│       └──────────────────┬───────────────────────────────┘        │
+│                          ↓ ALL SLOTS FILLED                        │
+│              ┌──────────────────────────┐                          │
+│              │  PRICING ENGINE (Python) │   ← owner sets price     │
+│              │  Deterministic, no LLM   │     via dashboard        │
+│              └──────────┬───────────────┘                          │
+│                         ↓                                          │
+│         ┌───────────────────────────────┐                          │
+│         │  30-day order book check      │                          │
+│         │  Can own mill fulfill? Y/N    │                          │
+│         └──────┬──────────────┬─────────┘                         │
+│         Own mill             Shortfall                              │
+│              ↓                    ↓                                │
+│         Quote sent         TRADING AGENT (internal)                │
+│                            → source from partner mills             │
+│                            → 3-5% margin applied                   │
+└────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────┐
+│                       OWNER SIDE                                   │
+│                                                                    │
+│   Owner WhatsApp / Dashboard → FastAPI /webhook/owner              │
+│                                          ↓                         │
+│                            GURU (Learning Agent)                   │
+│                         [Sarvam-105B, temp=0.2]                    │
+│                                          ↓                         │
+│         ┌────────────────────────────────────────────┐            │
+│         │         knowledge_base TABLE               │            │
+│         │  key | value | source | timestamp          │            │
+│         │  -----------------------------------        │            │
+│         │  meter_weight_36_3g_unlam | 142 g/m        │            │
+│         │  quality_silver_strength  | 1600 N         │            │
+│         │  dispatch_min_order_kg    | 500             │            │
+│         │  hsn_code_pp_fabric       | 5407           │            │
+│         └────────────────────────────────────────────┘            │
+│                          ↑ read by Ravi at runtime                 │
+└────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────┐
+│                     OWNER DASHBOARD (UI)                           │
+│  Left: Customer list → stages, source, handoffs, unread            │
+│  Center: Full chat thread + agent draft + quote history            │
+│  Right: Live feed + set price + approve quote + upload sheets      │
+└────────────────────────────────────────────────────────────────────┘
+How Guru Learns (the Continuous Learning Loop)
+Step 1 — Ravi hits a gap during a customer conversation (e.g. customer asks meter weight of 36" × 3.5g unlaminated):
+
+text
+Ravi → knowledge_base lookup: "meter_weight_36_3.5g_unlam" → NOT FOUND
+Ravi → sends to customer: "Yeh detail main 2 minute mein confirm karta hoon."
+Ravi → flags event: KNOWLEDGE_MISSING {key, customer_uuid, context}
+Step 2 — Guru detects the flag and sends a WhatsApp message to the owner:
+
+text
+Guru → owner WhatsApp:
+"Ravi needs: meter weight of 36" × 3.5g unlaminated fabric.
+Customer: Biogreen Polybag (Nandan Kumar, Bihar).
+Please reply with the value."
+Step 3 — Owner replies (on WhatsApp or dashboard):
+
+text
+Owner → "142 grams per meter"
+Step 4 — Guru parses, validates, stores:
+
+text
+knowledge_base.insert({
+  key: "meter_weight_36_3.5_unlam",
+  value: "142 g/m",
+  source: "owner",
+  timestamp: now
+})
+Step 5 — Guru notifies Ravi to resume:
+
+text
+Ravi → customer: "36" × 3.5g unlaminated fabric ka meter weight 142 grams hai."
+This loop is permanent. Every new question a customer asks that the system cannot answer creates one entry in knowledge_base. The system asymptotically becomes complete. After 2-3 weeks, 90% of standard questions are answered instantly.
+
+Guru Also Learns Business Rules
+Guru doesn't just fetch facts. If you tell him:
+
+"Agar customer 34" se chhota size maange aur quantity 2 tonnes se kam ho toh pehle premium explain karo."
+
+Guru stores this as a business rule with type = "rule" and Ravi uses it as a system prompt injection next time that case occurs. The owner effectively programs business logic through natural conversation — no code changes needed.
+
+Complete File Structure
+text
+anjani_agent/
+├── backend/
+│   ├── main.py                  ← FastAPI, both webhooks, WebSocket
+│   ├── database.py              ← All tables including knowledge_base
+│   ├── pricing_engine.py        ← Deterministic ₹/kg calculator
+│   ├── agents/
+│   │   ├── sales_agent.py       ← Ravi: slot-filler, customer-facing
+│   │   ├── trading_agent.py     ← Internal: partner mill sourcing
+│   │   └── guru_agent.py        ← Owner-facing: knowledge collector
+│   ├── templates/
+│   │   └── dashboard.html       ← Full owner UI
+│   ├── requirements.txt
+│   ├── Dockerfile
+│   └── .env.example
+Database Tables (Updated)
+sql
+customers        — UUID, phone, company, GST, region, stage, lead_source
+chat_history     — All messages per customer
+enquiries        — Qualified specs per customer
+quotes           — Generated quotes with price snapshot
+activity_log     — Every event: message/quote/trade/handoff/learn
+leads            — IndiaMart / portal / manual incoming contacts
+knowledge_base   — key, value, type(fact/rule/table), source, timestamp
+owner_sessions   — Guru's conversation with owner (separate history)
+production_cap   — Daily capacity per size, current bookings
+The knowledge_base table is the single most important addition. It is the memory of the entire system. Both Ravi and Guru read from and write to it.
+
+Deployment Sequence
+Build and test in exactly this order — don't skip:
+
+Deploy FastAPI + SQLite + ChakraHQ webhook — verify inbound messages arrive correctly.
+
+Import SAMPLE_DATA.xlsx into customers table as seed CRM.
+
+Set up Ravi (sales agent) with slot-filling state machine and the pricing rules you gave.
+
+Connect owner WhatsApp number to Guru (separate ChakraHQ plugin or same with phone-number routing).
+
+Wire the KNOWLEDGE_MISSING flag loop — Ravi → Guru → Owner → knowledge_base → Ravi.
+
+Deploy dashboard UI — price setter, live feed, customer chat viewer.
+
+Test end to end with your own phone number before any real customer.
+
+Trading agent is phase 2 — add only after own-production pricing is stable.
+
+IndiaMart lead ingestion is phase 3 — webhook from IndiaMart or manual CSV import.what you think which database should we use for this tell me correctly see i have a server do one thing instead of deploying it to somewhere else we will deploy it to our server and store the data there itself so make database like both that data and agent will run on same machine can we do this like all the data and all things will save on my server tell me can we do this and how also one thing can we combine these persona ravi and guru like can we combine them why we need two persona tell this in detail and clearly do it as best as you can
+
+ Which database and where?
+Why PostgreSQL, not SQLite
+SQLite is a file DB with a single write lock; under multiple simultaneous WhatsApp conversations, you will hit write contention and potential corruption risk if the process crashes mid-write.
+
+PostgreSQL supports:
+
+Proper concurrent writes via MVCC (no readers blocking writers).
+
+Row-level locking, indexes, foreign keys, migrations (Alembic), connection pooling.
+
+FastAPI + async SQLAlchemy + asyncpg + PostgreSQL is the standard production combo.
+
+Deployment on your own server
+You absolutely can and should run both the agent and the database on your own server:
+
+Same machine:
+
+fastapi/uvicorn listening on 0.0.0.0:8000 (for ChakraHQ + dashboard).
+
+PostgreSQL listening on 127.0.0.1:5432 (local only, not exposed to internet).
+
+Advantages:
+
+All customer data stays on your hardware.
+
+DB latency is minimal (localhost).
+
+You control backup/restore, limits, retention.
+
+High-level setup:
+
+Install PostgreSQL locally (Ubuntu example):
+
+bash
+sudo apt-get install postgresql postgresql-contrib
+sudo -u postgres psql
+CREATE DATABASE anjani;
+CREATE USER anjani_user WITH PASSWORD 'strong_password';
+GRANT ALL PRIVILEGES ON DATABASE anjani TO anjani_user;
+\q
+Set env var in your FastAPI app:
+
+bash
+export DATABASE_URL="postgresql+asyncpg://anjani_user:strong_password@127.0.0.1:5432/anjani"
+Use async SQLAlchemy with connection pooling:
+
+python
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
+
+engine = create_async_engine(
+    os.getenv("DATABASE_URL"),
+    pool_size=20,
+    max_overflow=10,
+)
+async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+Use Alembic for migrations as your schema evolves (new knowledge_base, new rules, etc.).
+
+So yes: run everything on your server. Do not put DB in any cloud if you want full data locality.
+
+2. Can we combine Ravi and Guru?
+Short answer: you can combine them technically, but you should not combine them into a “single mind” for now if you care about control and safety.
+
+Why they exist as different personas
+Two very different jobs:
+
+Ravi (Customer WhatsApp)
+
+Goal: close deals, qualify, generate quotes, answer buyers in all Indian languages.
+
+Constraints:
+
+Cannot invent prices.
+
+Cannot promise delivery.
+
+Must stay polite and sales-focused.
+
+Must never leak internal rules or trading margins.
+
+Surface: visible to customers; any mistake is reputational and financial.
+
+Guru (Owner chat / dashboard)
+
+Goal: ask you for missing info, learn rules, update knowledge base, maintain internal memory.
+
+Constraints:
+
+Can ask dumb questions, iterate, clarify.
+
+Can talk about margins, weaknesses, supply issues.
+
+Surface: only you see Guru, not the customer.
+
+If you merge them into one “agent”, two bad things happen:
+
+The same LLM context that contains trading margins, weak capacity, exceptions, etc., is also the one answering customers → huge leak risk.
+
+The sales dialogues and owner-training dialogues interfere; you can accidentally change sales behavior mid-customer conversation by how you answer Guru-style prompts.
+
+Clean design: one brain, two masks
+You don’t need two separate big models. You need one model used with two different system prompts and contexts:
+
+Sales mode (Ravi):
+
+System prompt: customer-friendly, multilingual, no internal info, no price computation, no delivery promises, must output tags like [PRICE_COMPUTE:{...}], [HANDOFF].
+
+Context: customer chat history + product catalog + knowledge_base facts that are allowed to be exposed to customers.
+
+Owner mode (Guru):
+
+System prompt: internal assistant, free to talk about missing data, ask for tables, discuss margins.
+
+Context: owner chat history + full internal knowledge_base (including facts you never show customers).
+
+Same model, strictly separated contexts and prompts. That’s the correct way to “combine” them while keeping hard boundaries.
+
+3. Can the agent be a continuous learner on this server?
+Yes. That’s exactly what we’re designing. But note:
+
+“Learning” here means:
+
+Writing new structured rows to PostgreSQL (knowledge_base, rules, production_capacity).
+
+Adjusting prompts based on these rows.
+
+It does not mean:
+
+Fine-tuning the Sarvam base model on the fly (unnecessary and expensive).
+
+Letting the LLM invent new rules on its own.
+
+Mechanism:
+
+Sales flow hits unknown:
+
+Meter weight, new lamination variant, new quality term, a special price exception, etc.
+
+Ravi emits an internal event (KNOWLEDGE_MISSING).
+
+Guru asks you:
+
+On owner WhatsApp or in a dedicated “Owner Console” chat in the dashboard.
+
+You answer in plain language:
+
+“Meter weight for 36 inch, 3.5g unlam is 142 grams per meter.”
+
+Guru parses and writes:
+
+key="meter_weight:36:3.5:unlam" value="142 g/m" type="fact" source="owner".
+
+All next requests use that value deterministically; no more asking.
+
+This loop is exactly what you want: an agent that keeps talking to the owner and only remembers what is worth remembering.
+
+4. Why not just one persona that talks to both customer and owner?
+Because you will lose:
+
+Security:
+
+One prompt/context, customer asks something clever, agent may leak internal config, margins, or production issues.
+
+Control:
+
+No separation between “training channel” and “production channel”. Any random owner message can alter live behavior.
+
+Debuggability:
+
+When something goes wrong, you won’t know if it’s due to customer context or owner context; mixed logs are hell.
+
+Right design:
+
+Operationally: two channels, one model.
+
+Endpoint A: /webhook/customer (Chakra plugin for customer number) → Ravi prompt.
+
+Endpoint B: /webhook/owner (same server, either another WhatsApp number or dashboard chat) → Guru prompt.
+
+Internally: both reading/writing to same PostgreSQL database on your server.
+
+That gives you:
+
+One DB, one server, one model.
+
+Two strictly separated behaviors.
+
+Continuous learning from owner without risking customer exposure.
+
+5. How to proceed, concretely
+Given you already have a server and want everything local:
+
+Install PostgreSQL on your server and set DATABASE_URL as above.
+
+Migrate the existing SQLite schema (if you started with SQLite) to PostgreSQL via Alembic or a custom migration script.
+
+Implement:
+
+knowledge_base table.
+
+Owner chat history table.
+
+Both /webhook/customer and /webhook/owner endpoints.
+
+Add:
+
+Sales prompt (Ravi) + tag mechanism.
+
+Guru prompt + parsing to write into knowledge_base.
+
+Wire:
+
+Customer WhatsApp plugin to /webhook/customer.
+
+Your personal WhatsApp (or a separate “owner” number) to /webhook/owner.
+
+Run everything on your single server, behind nginx with HTTPS.
+
+If you want, I can next give you:
+
+Exact PostgreSQL schema (DDL).
+
+The two system prompts: Ravi and Guru, cleaned and production-ready.
+
+The environment + docker-compose snippet for your server (Postgres + FastAPI on the same machine).
+also update the plan as we are dropping the lead generation part as of know we are not doing it please update the plan according to this also put this also in database part that we discuss now do it very accurately and precisely
+
+You’re right to drop lead generation for now. It’s a distraction. Here is the updated, minimal, production plan with:
+
+No lead-gen
+
+Postgres on your own server
+
+Single model with two personas (Ravi = customer, Guru = owner)
+
+One shared database
+
+1. Scope (Updated)
+What you are building now:
+
+WhatsApp sales agent for fabric (Ravi).
+
+Owner-facing learning/control agent (Guru).
+
+All data on your own server in PostgreSQL.
+
+No IndiaMART / portal lead-generation in v1.
+
+What you are not building now:
+
+Lead generation, lead scoring, or portal scraping.
+
+Campaign automation.
+
+Complex trading sourcing flows (beyond a basic flag).
+
+Good. Narrow scope = faster working system.
+
+2. Final Architecture (No Lead-Gen)
+Runtime components
+PostgreSQL (local on your server)
+
+Single DB anjani with all sales and knowledge tables.
+
+FastAPI backend
+
+Public endpoints:
+
+/webhook/customer – ChakraHQ webhook for customer WhatsApp.
+
+/webhook/owner – ChakraHQ or dashboard chat endpoint for owner.
+
+/dashboard – owner UI (via browser).
+
+WebSocket /ws/feed – pushes all events to dashboard.
+
+Sarvam LLM
+
+One model (e.g. sarvam-105b), called with two different prompts/contexts:
+
+Sales mode (Ravi).
+
+Owner mode (Guru).
+
+ChakraHQ
+
+One plugin for customer WhatsApp number → /webhook/customer.
+
+Optional second plugin or same plugin with routing for owner WhatsApp → /webhook/owner.
+
+No external lead sources. Every “customer” in DB is someone who actually chatted (or you manually create).
+
+3. Database Design (Updated, No Leads)
+Use PostgreSQL on your server. Minimum schema (conceptual):
+
+customers
+
+id (PK, UUID)
+
+phone (unique)
+
+name
+
+company
+
+gst_no
+
+email
+
+city
+
+state
+
+preferred_language (hi/en/gu/…)
+
+stage (greeting, qualifying, quoted, confirmed, closed, human_handoff)
+
+created_at, updated_at
+
+chat_messages
+
+id (PK)
+
+customer_id (FK → customers.id)
+
+role (user, assistant, owner, system)
+
+channel (customer_whatsapp, owner_whatsapp, dashboard)
+
+content
+
+timestamp
+
+enquiries Each “enquiry” is one fully or partially specified fabric requirement.
+
+id (PK)
+
+customer_id (FK)
+
+size_inch (int)
+
+grammage (float)
+
+quality (Janta/Regular/Silver/Gold/Platinum)
+
+color (white / half_colour / full_colour)
+
+lamination (none / regular / natural)
+
+quantity_kg (float)
+
+delivery_city
+
+seasonal_months (JSON array, e.g. ["Jan","Feb","Mar"])
+
+source (own_production / trading)
+
+status (enquiry, quoted, confirmed, cancelled, closed)
+
+created_at, updated_at
+
+quotes This captures exact price snapshot so any future change in base price does not affect old quotes.
+
+id (PK)
+
+enquiry_id (FK → enquiries.id)
+
+customer_id (FK)
+
+base_price_3g (float; daily base price used)
+
+size_premium (float)
+
+grammage_delta (float)
+
+color_premium (float)
+
+lamination_premium (float)
+
+unit_price_kg (float; computed)
+
+total_amount (float)
+
+currency (e.g. INR)
+
+valid_till (date)
+
+approved_by_owner (bool)
+
+created_at
+
+price_config Owner’s daily base price for 3.0g, white, unlaminated.
+
+id (PK)
+
+base_price_3g (float)
+
+set_by (string, owner name/email)
+
+effective_from (timestamp)
+
+notes
+
+knowledge_base This is Guru’s memory. No lead-generation fields.
+
+id (PK)
+
+key (string, unique; e.g. meter_weight:36:3.5:unlam)
+
+value (text; JSON or plain)
+
+type (fact, rule, table)
+
+scope (customer_visible, internal_only) ← critical to avoid leaks
+
+source (owner, system)
+
+created_at, updated_at
+
+production_capacity For delivery promises (rule 2: must come from here, not LLM):
+
+id (PK)
+
+date
+
+size_inch (int)
+
+grammage (float)
+
+planned_output_kg (float)
+
+booked_kg (float)
+
+available_kg (float)
+
+notes
+
+activity_log Full audit trail of what the agent did (your requirement).
+
+id (PK)
+
+event_type (new_message, quote_sent, price_updated, handoff, trading_flag, knowledge_learned)
+
+customer_id (nullable)
+
+payload (JSON)
+
+timestamp
+
+owner_sessions To separate Guru’s chat with you from customer chats.
+
+id (PK)
+
+owner_id (simple string like phone/email if needed)
+
+message (text)
+
+role (owner, assistant)
+
+timestamp
+
+Removed tables: no leads table, no lead_sources. Lead-gen is out.
+
+4. Updated Behavior Rules (With DB Backing)
+Rule 1: Price
+The customer-facing agent never computes price.
+
+Flow:
+
+Ravi collects: size, grammage, quality, color, lamination, quantity, city, seasonal requirement.
+
+Ravi emits [PRICE_COMPUTE:{...}].
+
+Backend:
+
+Reads current base_price_3g from price_config.
+
+Applies deterministic rules (size premiums, grammage deltas, color and lamination premiums).
+
+Writes quotes row.
+
+Sends formatted price to customer.
+
+No Sarvam calculation, no hallucination. All price math in Python using DB values.
+
+Rule 2: Delivery promise
+Sales agent cannot say “7 days delivery”, “15 days”, etc. unless production_capacity data supports it.
+
+Algorithm:
+
+Look at production_capacity for relevant sizes and grammages in the requested period (say, next 30 days).
+
+If there is enough available_kg, compute earliest delivery slot.
+
+If capacity data missing or ambiguous:
+
+Ravi responds: “Production team se confirm karke delivery date batata hoon.”
+
+Guru pings you to fill capacity for relevant days.
+
+After you fill it in (through dashboard or Guru chat), future customers get precise delivery estimates.
+
+Rule 3: Meter weight, quality strength/elongation, bill line items
+Meter weight:
+
+Lookup in knowledge_base using keys like meter_weight:36:3.5:unlam.
+
+If missing → Guru asks you → writes the fact → Ravi uses it next time.
+
+Quality strength/elongation:
+
+Stored as quality_strength:Silver, quality_elongation:Silver, etc.
+
+Never invented by LLM.
+
+Bill/PI lines:
+
+At quote confirmation, backend generates PI/invoice using:
+
+Customer details from customers.
+
+Quote details from quotes.
+
+Terms from knowledge_base (hsn_code, gst_rate, payment_terms, bank_details).
+
+Guru will ask you for each of these once if missing.
+
+5. Personas (Ravi vs Guru) – Still Both, Just No Leads
+Dropping lead generation does not change the persona separation.
+
+Ravi (Sales mode):
+
+Only sees:
+
+customers, chat_messages, enquiries, quotes (for that customer),
+
+knowledge_base rows with scope = customer_visible,
+
+production_capacity summary (only what is allowed to be told to customers).
+
+Produces:
+
+Messages to customer,
+
+[PRICE_COMPUTE], [HANDOFF], maybe [TRADING_FLAG].
+
+Guru (Owner mode):
+
+Has access to everything:
+
+Full knowledge_base, including internal_only.
+
+activity_log for all events.
+
+production_capacity details.
+
+Tasks:
+
+Ask you questions when KNOWLEDGE_MISSING.
+
+Parse your answers into structured data and write to DB.
+
+Optionally suggest optimizations (e.g., “You often give exceptions for 34" under 1000kg; want me to store it as a rule?”).
+
+No leads means Guru doesn’t deal with IndiaMART or scraped leads — only internal learning.
+
+6. How to Implement in Phases (No Lead-Gen)
+Minimal realistic sequence:
+
+Infra and DB
+
+Install PostgreSQL on your server.
+
+Create anjani DB, anjani_user.
+
+Implement DB schema above (via Alembic migrations).
+
+LLM + Chakra integration
+
+Implement /webhook/customer using ChakraHQ docs for pass-through inbound.
+
+Implement basic /webhook/owner (can be just dashboard chat initially).
+
+Ravi: Sales agent
+
+Write system prompt with:
+
+Multi-language behavior.
+
+Slot-filling for your parameters.
+
+Strict rule: only emit [PRICE_COMPUTE] tag for pricing.
+
+Wire conversation state to DB (customers, chat_messages, enquiries).
+
+Pricing engine
+
+Implement deterministic engine with your rules in Python.
+
+Save results into quotes.
+
+Format WhatsApp quote text.
+
+Guru: Learning agent
+
+Write system prompt for Guru.
+
+Implement logic:
+
+On KNOWLEDGE_MISSING events, call Guru → ask you → parse → write to knowledge_base.
+
+Add simple owner UI or use owner WhatsApp.
+
+Dashboard
+
+Build a basic web dashboard:
+
+Live feed via WebSocket backed by activity_log.
+
+Customer list + last message.
+
+Chat view + quote list.
+
+Price setting page (price_config).
+
+All of this runs on your single server, with PostgreSQL local and all data staying on your machine. Lead generation stays out until you’re ready.
+
+If you want next, I can give you:
+
+Exact SQL DDL for these tables for PostgreSQL.
+
+Clean system prompts text for Ravi and Guru, with all your fabric business rules wired in.

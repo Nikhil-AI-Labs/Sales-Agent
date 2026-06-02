@@ -28,21 +28,64 @@ function templateBaseUrl() {
 }
 
 export async function sendSessionMessage(to: string, text: string) {
-  const response = await fetch(`${messageBaseUrl()}/messages`, {
-    method: "POST",
-    headers: chakraHeaders(),
-    body: JSON.stringify({
-      messaging_product: "whatsapp",
-      to,
-      type: "text",
-      text: { body: text },
-    }),
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data?.error?.message ?? data?.message ?? `Chakra send failed with ${response.status}`);
+  const maxRetries = 3;
+  let lastError: Error | null = null;
+  const normalizedTo = String(to).replace(/[^\d]/g, "");
+
+  if (!normalizedTo) {
+    throw new Error("Missing WhatsApp recipient phone number");
   }
-  return data;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(`${messageBaseUrl()}/messages`, {
+        method: "POST",
+        headers: chakraHeaders(),
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: normalizedTo,
+          type: "text",
+          text: { body: text },
+        }),
+      });
+      
+      const data = await response.json().catch(() => ({}));
+      
+      if (!response.ok) {
+        const message = data?.error?.message ?? data?.message ?? `Chakra send failed with ${response.status}`;
+        
+        // Retry on transient errors (5xx, rate limits)
+        if (response.status >= 500 || response.status === 429) {
+          lastError = new Error(message);
+          if (attempt < maxRetries) {
+            // Exponential backoff: 1s, 2s, 4s
+            await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt - 1) * 1000));
+            continue;
+          }
+        }
+        
+        throw new Error(message);
+      }
+      
+      return data;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      
+      // If it's a network error, retry
+      if (error instanceof Error && error.message.includes('fetch')) {
+        if (attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt - 1) * 1000));
+          continue;
+        }
+      }
+      
+      // For other errors, throw immediately
+      throw lastError;
+    }
+  }
+
+  throw lastError || new Error("ChakraHQ send failed after multiple retries");
 }
 
 export async function sendTemplateMessage(to: string, templateName: string, language: string, parameters: string[]) {

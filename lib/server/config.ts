@@ -8,6 +8,7 @@ export type RuntimeConfig = {
   sarvamModel: string;
   productionTeamPhone: string;
   webhookSecret: string;
+  databaseUrl: string;
 };
 
 export function getConfig(): RuntimeConfig {
@@ -21,6 +22,7 @@ export function getConfig(): RuntimeConfig {
     sarvamModel: process.env.SARVAM_MODEL ?? "sarvam-105b",
     productionTeamPhone: process.env.PRODUCTION_TEAM_PHONE ?? "",
     webhookSecret: process.env.CHAKRA_WEBHOOK_SECRET ?? "",
+    databaseUrl: process.env.DATABASE_URL ?? "",
   };
 }
 

@@ -5,6 +5,7 @@ declare module "lucide-react" {
 
   export const Activity: LucideIcon;
   export const AlertTriangle: LucideIcon;
+  export const ArrowRight: LucideIcon;
   export const ArrowUpRight: LucideIcon;
   export const BadgeCheck: LucideIcon;
   export const BadgeIndianRupee: LucideIcon;
@@ -14,6 +15,7 @@ declare module "lucide-react" {
   export const Brain: LucideIcon;
   export const ChartNoAxesCombined: LucideIcon;
   export const Check: LucideIcon;
+  export const ChevronDown: LucideIcon;
   export const ChevronLeft: LucideIcon;
   export const ChevronRight: LucideIcon;
   export const CircleDot: LucideIcon;
@@ -30,10 +32,14 @@ declare module "lucide-react" {
   export const Mic: LucideIcon;
   export const Paperclip: LucideIcon;
   export const Phone: LucideIcon;
+  export const Plus: LucideIcon;
+  export const RefreshCw: LucideIcon;
   export const Search: LucideIcon;
   export const Send: LucideIcon;
   export const Settings: LucideIcon;
   export const ShieldCheck: LucideIcon;
   export const Sparkles: LucideIcon;
+  export const Trash2: LucideIcon;
+  export const X: LucideIcon;
   export const Zap: LucideIcon;
 }

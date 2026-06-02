@@ -15,9 +15,15 @@ export function verifyChakraSignature(rawBody: string, signature: string | null)
 }
 
 export function extractWhatsAppMessage(data: any) {
-  const payload = data?.payload ?? data;
-  const message = payload?.message ?? {};
-  const contacts = payload?.contacts ?? [];
+  const value = data?.entry?.[0]?.changes?.[0]?.value;
+  const payload = data?.payload ?? data?.data ?? value ?? data;
+  const message =
+    payload?.message ??
+    payload?.messages?.[0] ??
+    data?.message ??
+    data?.messages?.[0] ??
+    {};
+  const contacts = payload?.contacts ?? data?.contacts ?? [];
   const type = message?.type ?? "text";
   let text = "";
   if (type === "text") text = message?.text?.body ?? "";
@@ -28,11 +34,11 @@ export function extractWhatsAppMessage(data: any) {
     text = `[${type} received]`;
   }
   return {
-    phone: message?.from ?? payload?.from ?? "",
+    phone: String(message?.from ?? payload?.from ?? payload?.wa_id ?? "").replace(/[^\d]/g, ""),
     name: contacts?.[0]?.profile?.name ?? "",
     type,
     text,
-    messageId: payload?.messageId ?? message?.id ?? "",
+    messageId: payload?.messageId ?? payload?.message_id ?? message?.id ?? "",
   };
 }
 
@@ -42,7 +48,7 @@ export async function handleCustomerInbound(rawBody: string, signature: string |
   }
 
   const data = JSON.parse(rawBody || "{}");
-  if (data?.event && data.event !== "message") {
+  if (data?.event && !String(data.event).toLowerCase().includes("message")) {
     await appendLog("chakra_event_ignored", data);
     return { status: 200, body: { status: "ignored" } };
   }
@@ -60,29 +66,35 @@ export async function handleCustomerInbound(rawBody: string, signature: string |
     return { status: 200, body: { status: "received_agent_disabled" } };
   }
 
-  const ai = await sarvamChat(
-    [
-      { role: "system", content: RAVI_SYSTEM_PROMPT },
-      { role: "user", content: `Customer name: ${inbound.name || "Unknown"}\nPhone: ${inbound.phone}\nMessage: ${inbound.text}` },
-    ],
-    { temperature: 0.25, maxTokens: 550 },
-  );
-
-  await appendLog("ravi_draft", { inbound, reply: ai.content, usage: ai.usage });
-
-  let chakraResponse = null;
-  if (state.autoSendRaviReplies) {
-    chakraResponse = await sendSessionMessage(inbound.phone, ai.content);
-    await appendLog("ravi_auto_sent", { to: inbound.phone, reply: ai.content, chakraResponse });
+  let result;
+  try {
+    const { processCustomerMessageV2 } = await import("@/lib/server/ravi-agent-v2");
+    result = await processCustomerMessageV2(
+      inbound.phone,
+      inbound.name,
+      inbound.text,
+      state.autoSendRaviReplies
+    );
+  } catch (error) {
+    await appendLog("ravi_processing_failed", {
+      inbound,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
   }
+
+  await appendLog("ravi_processed", { inbound, result });
 
   return {
     status: 200,
     body: {
       status: state.autoSendRaviReplies ? "replied" : "drafted",
       inbound,
-      reply: ai.content,
+      reply: result.response,
       autoSent: state.autoSendRaviReplies,
+      escalated: result.escalated,
+      needsOwnerInput: 'needsOwnerInput' in result ? result.needsOwnerInput : false,
+      questionForOwner: 'questionForOwner' in result ? result.questionForOwner : undefined,
     },
   };
 }
@@ -94,14 +106,40 @@ export async function handleOwnerInbound(rawBody: string, signature: string | nu
   const data = JSON.parse(rawBody || "{}");
   const inbound = extractWhatsAppMessage(data);
   await appendLog("owner_inbound", inbound);
-  const ai = await sarvamChat(
-    [
-      { role: "system", content: GURU_SYSTEM_PROMPT },
-      { role: "user", content: inbound.text },
-    ],
-    { temperature: 0.15, maxTokens: 450 },
-  );
-  await appendLog("guru_reply", { inbound, reply: ai.content });
-  if (inbound.phone) await sendSessionMessage(inbound.phone, ai.content);
-  return { status: 200, body: { status: "replied", reply: ai.content } };
+
+  // Use the new Guru agent with database integration
+  const { GuruAgent } = await import("@/lib/server/guru-agent");
+  const guru = new GuruAgent();
+
+  // Get conversation history
+  const history = await guru.getConversationHistory(inbound.phone, 10);
+
+  // Process owner message
+  const result = await guru.processOwnerMessage(inbound.phone, inbound.text, history);
+
+  await appendLog("guru_reply", { inbound, reply: result.reply, memoryCandidate: result.memoryCandidate });
+
+  // If there's a memory candidate, store it automatically
+  if (result.memoryCandidate) {
+    await guru.storeMemory(
+      result.memoryCandidate.key,
+      result.memoryCandidate.value,
+      result.memoryCandidate.type,
+      result.memoryCandidate.scope,
+      'owner'
+    );
+    await appendLog("guru_memory_stored", result.memoryCandidate);
+  }
+
+  // Send reply to owner
+  if (inbound.phone) await sendSessionMessage(inbound.phone, result.reply);
+
+  return {
+    status: 200,
+    body: {
+      status: "replied",
+      reply: result.reply,
+      memoryStored: !!result.memoryCandidate
+    }
+  };
 }

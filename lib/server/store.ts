@@ -58,7 +58,12 @@ async function writeJson(filePath: string, value: unknown) {
 }
 
 export async function getAgentState(): Promise<AgentState> {
-  return readJson(statePath, defaultState);
+  const saved = await readJson<Partial<AgentState>>(statePath, {});
+  return {
+    ...defaultState,
+    ...saved,
+    updatedAt: saved.updatedAt ?? defaultState.updatedAt,
+  };
 }
 
 export async function updateAgentState(patch: Partial<Omit<AgentState, "updatedAt">>) {
