@@ -246,6 +246,18 @@ type OwnerTemplate = {
 function SalesOS() {
   const activeView = useUIStore((state) => state.activeView);
   const collapsed = useUIStore((state) => state.collapsed);
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [activeChat, setActiveChat] = useState<ChakraChat | null>(null);
+
+  function handleSelectChat(id: string, chat: ChakraChat) {
+    setActiveChatId(id);
+    setActiveChat(chat);
+  }
+
+  function handleCloseChat() {
+    setActiveChatId(null);
+    setActiveChat(null);
+  }
 
   return (
     <main className="relative h-screen overflow-hidden bg-void text-slate-100">
@@ -257,22 +269,34 @@ function SalesOS() {
         ) : (
           <>
             {activeView === "chats" && (
-              <CustomerList className={collapsed ? "hidden xl:flex" : "flex"} />
+              <CustomerList
+                className={collapsed ? "hidden xl:flex" : "flex"}
+                activeChatId={activeChatId}
+                onSelectChat={handleSelectChat}
+              />
             )}
             <section className="flex min-w-0 flex-1">
               <AnimatePresence mode="wait">
                 <motion.div
-                  key={activeView}
+                  key={activeView === "chats" && activeChatId ? `chat-${activeChatId}` : activeView}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.28 }}
-                  className="min-w-0 flex-1"
+                  className="min-w-0 flex-1 flex"
                 >
-                  <MainView view={activeView} />
+                  {activeView === "chats" && activeChatId ? (
+                    <ChakraChatDetail
+                      chatId={activeChatId}
+                      chat={activeChat}
+                      onClose={handleCloseChat}
+                    />
+                  ) : (
+                    <MainView view={activeView} />
+                  )}
                 </motion.div>
               </AnimatePresence>
-              <RightIntelligencePanel />
+              {!(activeView === "chats" && activeChatId) && <RightIntelligencePanel />}
             </section>
           </>
         )}
@@ -355,32 +379,7 @@ function Sidebar() {
         </Button>
       </div>
 
-      <div className="space-y-3 border-b border-white/10 p-4">
-        {[
-          ["AI system", "Online", "green"],
-          ["WhatsApp", "Chakra connected", "cyan"],
-          ["Sarvam model", "Ready", "violet"],
-          ["Production sync", `${statsData?.stats?.loomUtilization ?? 82}% load`, "amber"],
-        ].map(([label, value, tone]) => (
-          <div key={label} className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2">
-            <span
-              className={cn(
-                "h-2.5 w-2.5 shrink-0 rounded-full shadow-glow",
-                tone === "green" && "bg-emerald-400",
-                tone === "cyan" && "bg-cyan",
-                tone === "violet" && "bg-violet",
-                tone === "amber" && "bg-amber-300",
-              )}
-            />
-            {!collapsed && (
-              <div className="min-w-0">
-                <div className="truncate text-[11px] uppercase text-slate-500">{label}</div>
-                <div className="truncate text-xs text-slate-200">{value}</div>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+
 
       {!collapsed && <AgentControls />}
 
@@ -477,98 +476,136 @@ function AgentControls() {
   );
 }
 
-/* ─── Customer List (Live from DB) ────────────────────────────── */
-function CustomerList({ className }: { className?: string }) {
-  const activeCustomerId = useUIStore((state) => state.activeCustomerId);
-  const setActiveCustomerId = useUIStore((state) => state.setActiveCustomerId);
+/* ─── ChakraHQ Chat Types ──────────────────────────────────────── */
+type ChakraChat = {
+  id: string;
+  status: string;
+  provider: string;
+  primaryContact: { id: string; name: string; firstName?: string; lastName?: string; photo?: string } | null;
+  primaryContactHandle: { value: string; type: string } | null;
+  latestMessage: { text: string; direction: string; timestamp: number; dataType: string } | null;
+  latestMessageTs: number;
+  latestMessageDirection: string;
+  startedAt: number;
+  assignedTo: null | { name: string };
+};
+
+type ChakraMessage = {
+  id: string;
+  direction: "INBOUND" | "OUTBOUND";
+  text: string;
+  dataType: string;
+  body: string;
+  timestamp: number;
+  createdAt: number;
+  deliveryStatus: string;
+  source: string | null;
+};
+
+/* ─── Customer List (Live from ChakraHQ) ──────────────────────── */
+function CustomerList({
+  className,
+  activeChatId,
+  onSelectChat,
+}: {
+  className?: string;
+  activeChatId: string | null;
+  onSelectChat: (id: string, chat: ChakraChat) => void;
+}) {
   const [search, setSearch] = useState("");
 
-  const { data, isLoading } = useQuery<{ ok: boolean; customers: LiveCustomer[] }>({
-    queryKey: ["customers", search],
-    queryFn: () => fetch(`/api/customers?search=${encodeURIComponent(search)}`).then((r) => r.json()),
-    refetchInterval: 6000,
+  const { data, isLoading, refetch } = useQuery<{ ok: boolean; chats: ChakraChat[]; total: number }>({
+    queryKey: ["chakra-chats", search],
+    queryFn: () => fetch(`/api/chakra/chats?limit=30${search ? `&search=${encodeURIComponent(search)}` : ""}`).then((r) => r.json()),
+    refetchInterval: 8000,
   });
 
-  const customers = data?.customers || [];
+  const chats = data?.chats || [];
+
+  function formatTime(ts: number) {
+    if (!ts) return "";
+    const d = new Date(ts);
+    const now = new Date();
+    if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleDateString([], { day: "numeric", month: "short" });
+  }
 
   return (
-    <section className={cn("glass-strong h-full w-[360px] shrink-0 flex-col border-r border-white/10", className)}>
+    <section className={cn("glass-strong h-full w-[340px] shrink-0 flex-col border-r border-white/10", className)}>
       <div className="border-b border-white/10 p-4">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-3 flex items-center justify-between">
           <div>
             <h2 className="text-sm font-semibold text-white">Customer Chats</h2>
-            <p className="text-xs text-slate-500">Ravi AI WhatsApp workspace</p>
+            <p className="text-xs text-slate-500">ChakraHQ · {data?.total ?? 0} conversations</p>
           </div>
-          <Badge tone="green">Live</Badge>
+          <div className="flex items-center gap-2">
+            <button onClick={() => refetch()} className="rounded-lg border border-white/10 p-1.5 text-slate-400 hover:text-white transition">
+              <RefreshCw className={cn("h-3.5 w-3.5", isLoading && "animate-spin")} />
+            </button>
+            <Badge tone="green">Live</Badge>
+          </div>
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
           <input
             id="customer-search"
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            className="h-11 w-full rounded-lg border border-white/10 bg-white/[0.04] pl-9 pr-3 text-sm text-slate-100 outline-none transition focus:border-cyan/60 focus:shadow-glow"
-            placeholder="Search company, GST, phone..."
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-10 w-full rounded-lg border border-white/10 bg-white/[0.04] pl-9 pr-3 text-sm text-slate-100 outline-none transition focus:border-cyan/60"
+            placeholder="Search name, phone..."
           />
         </div>
       </div>
-      <div className="flex-1 space-y-3 overflow-y-auto p-3">
+      <div className="flex-1 overflow-y-auto">
         {isLoading && (
           <div className="flex justify-center py-8">
             <RefreshCw className="h-5 w-5 animate-spin text-cyan" />
           </div>
         )}
-        {!isLoading && customers.length === 0 && (
+        {!isLoading && chats.length === 0 && (
           <div className="py-12 text-center">
             <MessageCircle className="mx-auto mb-3 h-10 w-10 text-slate-600" />
-            <p className="text-sm text-slate-500">No customers yet</p>
-            <p className="mt-1 text-xs text-slate-600">Customers appear when they WhatsApp Ravi</p>
+            <p className="text-sm text-slate-500">No chats yet</p>
+            <p className="mt-1 text-xs text-slate-600">Chats appear when customers WhatsApp your business number</p>
           </div>
         )}
-        {customers.map((customer) => {
-          const active = customer.id === activeCustomerId;
+        {chats.map((chat) => {
+          const active = chat.id === activeChatId;
+          const contactName = chat.primaryContact?.name || chat.primaryContactHandle?.value || "Unknown";
+          const phone = chat.primaryContactHandle?.value || "";
+          const initials = contactName.slice(0, 2).toUpperCase();
+          const lastMsg = chat.latestMessage?.text || "Media message";
+          const isInbound = chat.latestMessageDirection === "INBOUND";
           return (
             <motion.button
-              key={customer.id}
-              onClick={() => setActiveCustomerId(customer.id)}
-              whileHover={{ y: -2 }}
+              key={chat.id}
+              onClick={() => onSelectChat(chat.id, chat)}
+              whileHover={{ backgroundColor: "rgba(255,255,255,0.05)" }}
               className={cn(
-                "relative w-full rounded-xl border p-4 text-left transition-all",
-                active ? "border-cyan/40 bg-cyan/10 shadow-glow" : "border-white/10 bg-white/[0.035] hover:border-violet/40 hover:bg-white/[0.06]",
+                "flex w-full items-start gap-3 border-b border-white/[0.05] px-4 py-3.5 text-left transition-all",
+                active ? "bg-cyan/10 border-l-2 border-l-cyan" : "hover:bg-white/[0.03]",
               )}
             >
-              <div className="flex gap-3">
-                <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-cyan/20 via-violet/20 to-emerald-400/20 text-sm font-semibold">
-                  {(customer.company || customer.name || "?").slice(0, 2).toUpperCase()}
-                  <span className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-ink bg-emerald-400" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start gap-2">
-                    <h3 className="line-clamp-1 text-sm font-semibold text-white">{customer.company || customer.name}</h3>
-                  </div>
-                  <p className="mt-0.5 text-xs text-slate-400">{customer.name}</p>
-                  <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-300">{customer.last_message || "No messages yet"}</p>
-                </div>
+              <div className="relative mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan/30 via-violet/20 to-emerald-400/20 text-sm font-semibold text-white">
+                {initials}
+                <span className={cn(
+                  "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-ink",
+                  chat.status === "OPEN" ? "bg-emerald-400" : "bg-slate-500"
+                )} />
               </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Badge
-                  tone={
-                    customer.stage === "quoted" ? "violet"
-                    : customer.stage === "confirmed" ? "green"
-                    : customer.stage === "greeting" ? "cyan"
-                    : "amber"
-                  }
-                >
-                  {customer.stage}
-                </Badge>
-                <Badge tone="slate">{customer.language}</Badge>
-              </div>
-              <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500">
-                <span>{customer.phone}</span>
-                <span className="flex items-center gap-1">
-                  <CircleDot className="h-3 w-3 text-emerald-300" />
-                  {customer.message_count} msgs
-                </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate text-sm font-semibold text-white">{contactName}</span>
+                  <span className="shrink-0 text-[11px] text-slate-500">{formatTime(chat.latestMessageTs)}</span>
+                </div>
+                <p className="mt-0.5 truncate text-[11px] text-slate-500">{phone}</p>
+                <p className={cn(
+                  "mt-1.5 truncate text-xs",
+                  isInbound ? "text-slate-300" : "text-slate-500"
+                )}>
+                  {!isInbound && <span className="mr-1 text-cyan">↩</span>}
+                  {lastMsg}
+                </p>
               </div>
             </motion.button>
           );
@@ -577,6 +614,8 @@ function CustomerList({ className }: { className?: string }) {
     </section>
   );
 }
+
+
 
 /* ─── Main View Router ─────────────────────────────────────────── */
 function MainView({ view }: { view: ViewKey }) {
@@ -592,105 +631,178 @@ function MainView({ view }: { view: ViewKey }) {
   return <ChatWorkspace />;
 }
 
-/* ─── Chat Workspace ───────────────────────────────────────────── */
-function ChatWorkspace() {
-  const activeCustomerId = useUIStore((state) => state.activeCustomerId);
-  const qc = useQueryClient();
+/* ─── ChakraHQ Chat Detail Panel (Full WhatsApp View) ─────────── */
+function ChakraChatDetail({ chatId, chat, onClose }: { chatId: string; chat: ChakraChat | null; onClose: () => void }) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [sendStatus, setSendStatus] = useState<"idle" | "ok" | "err">("idle");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const qc = useQueryClient();
 
-  const { data: chatData, isLoading } = useQuery<{ ok: boolean; messages: ChatMessage[]; customer: LiveCustomer }>({
-    queryKey: ["chat-messages", activeCustomerId],
-    queryFn: () => fetch(`/api/customers/chat?customerId=${activeCustomerId}`).then((r) => r.json()),
-    refetchInterval: 4000,
-    enabled: Boolean(activeCustomerId),
+  const { data, isLoading, refetch } = useQuery<{ ok: boolean; messages: ChakraMessage[] }>({
+    queryKey: ["chakra-messages", chatId],
+    queryFn: () => fetch(`/api/chakra/messages?chatId=${chatId}&limit=60`).then((r) => r.json()),
+    refetchInterval: 5000,
+    enabled: Boolean(chatId),
   });
 
-  const messages = chatData?.messages || [];
-  const customer = chatData?.customer;
+  const messages = (data?.messages || []).sort((a, b) => a.timestamp - b.timestamp);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
   }, [messages.length]);
 
-  async function sendOwnerNote() {
-    if (!draft.trim() || !activeCustomerId || sending) return;
+  async function sendReply() {
+    if (!draft.trim() || sending) return;
+    const phone = chat?.primaryContactHandle?.value || "";
+    if (!phone) { setSendStatus("err"); return; }
     setSending(true);
+    setSendStatus("idle");
     try {
-      await fetch("/api/customers/chat", {
+      const res = await fetch("/api/chakra/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerId: activeCustomerId, message: draft, role: "owner" }),
+        body: JSON.stringify({ to: phone.replace(/\D/g, ""), text: draft }),
       });
-      setDraft("");
-      qc.invalidateQueries({ queryKey: ["chat-messages", activeCustomerId] });
+      const result = await res.json();
+      if (result.ok) {
+        setDraft("");
+        setSendStatus("ok");
+        setTimeout(() => { setSendStatus("idle"); refetch(); }, 2000);
+      } else {
+        setSendStatus("err");
+      }
+    } catch {
+      setSendStatus("err");
     } finally {
       setSending(false);
     }
   }
 
-  if (!activeCustomerId) {
-    return (
-      <section className="flex h-full items-center justify-center flex-col gap-4">
-        <MessageCircle className="h-16 w-16 text-slate-700" />
-        <p className="text-slate-500">Select a customer to view chat</p>
-      </section>
-    );
+  const contactName = chat?.primaryContact?.name || chat?.primaryContactHandle?.value || "Customer";
+  const phone = chat?.primaryContactHandle?.value || "";
+
+  function formatTs(ts: number) {
+    if (!ts) return "";
+    return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
 
   return (
-    <section className="flex h-full min-w-0 flex-col">
-      <div className="glass-strong flex h-20 items-center justify-between border-b border-white/10 px-6">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="truncate text-lg font-semibold text-white">{customer?.company || customer?.name || "Customer"}</h1>
-            <Badge tone="cyan">{customer?.stage || "active"}</Badge>
-            <Badge tone={customer?.gst_number ? "green" : "red"}>GST {customer?.gst_number ? "Verified" : "Missing"}</Badge>
-          </div>
-          <div className="mt-1 flex flex-wrap items-center gap-4 text-xs text-slate-400">
-            <span>{customer?.name}</span>
-            <span className="flex items-center gap-1"><Phone className="h-3.5 w-3.5" />{customer?.phone}</span>
-            <span>{customer?.city}, {customer?.state}</span>
-            <span className="flex items-center gap-1"><Languages className="h-3.5 w-3.5" />{customer?.language}</span>
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 20 }}
+      transition={{ type: "spring", damping: 30, stiffness: 300 }}
+      className="flex h-full flex-1 flex-col overflow-hidden"
+    >
+      {/* Header */}
+      <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3">
+        <button onClick={onClose} className="rounded-lg border border-white/10 p-1.5 text-slate-400 hover:text-white transition">
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan/30 to-violet/20 text-xs font-semibold text-white">
+          {contactName.slice(0, 2).toUpperCase()}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold text-white truncate">{contactName}</div>
+          <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
+            <Phone className="h-3 w-3" />{phone}
+            <span className={cn("ml-1 h-2 w-2 rounded-full", chat?.status === "OPEN" ? "bg-emerald-400" : "bg-slate-500")} />
+            {chat?.status}
           </div>
         </div>
-        <div className="hidden items-center gap-3 xl:flex">
+        <div className="flex items-center gap-2">
           <AgentPill />
-          <Badge tone="green">Ravi AI Active</Badge>
+          <button onClick={() => refetch()} className="rounded-lg border border-white/10 p-1.5 text-slate-400 hover:text-white">
+            <RefreshCw className={cn("h-3.5 w-3.5", isLoading && "animate-spin")} />
+          </button>
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-6">
-        <div className="mx-auto max-w-4xl space-y-5">
-          {isLoading && (
-            <div className="flex justify-center py-8">
-              <RefreshCw className="h-5 w-5 animate-spin text-cyan" />
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {isLoading && (
+          <div className="flex justify-center py-8">
+            <RefreshCw className="h-5 w-5 animate-spin text-cyan" />
+          </div>
+        )}
+        {!isLoading && messages.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-500">
+            <MessageCircle className="h-10 w-10 text-slate-700" />
+            <p className="text-sm">No messages yet</p>
+          </div>
+        )}
+        {messages.map((msg) => {
+          const isInbound = msg.direction === "INBOUND";
+          const isOutbound = msg.direction === "OUTBOUND";
+          return (
+            <div key={msg.id} className={cn("flex", isOutbound ? "justify-end" : "justify-start")}>
+              {isInbound && (
+                <div className="mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan/20 to-violet/20 text-xs font-semibold text-white">
+                  {contactName.slice(0, 1)}
+                </div>
+              )}
+              <div className={cn(
+                "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-6",
+                isInbound
+                  ? "rounded-tl-sm bg-white/[0.08] border border-white/10 text-slate-100"
+                  : "rounded-tr-sm bg-gradient-to-br from-cyan/20 to-violet/15 border border-cyan/20 text-white shadow-glow"
+              )}>
+                <p>{msg.text || "[Media]"}</p>
+                <div className="mt-1.5 flex items-center justify-end gap-1 text-[10px] text-slate-500">
+                  {formatTs(msg.timestamp || msg.createdAt)}
+                  {isOutbound && <BadgeCheck className="h-3 w-3 text-cyan" />}
+                </div>
+              </div>
             </div>
-          )}
-          {messages.map((message) => (
-            <LiveMessageBubble key={message.id} message={message} />
-          ))}
-          <div ref={bottomRef} />
-        </div>
+          );
+        })}
+        <div ref={bottomRef} />
       </div>
 
-      <div className="glass-strong border-t border-white/10 p-4">
-        <div className="mx-auto flex max-w-4xl items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-2">
-          <Button variant="ghost" size="icon" aria-label="Attach file"><Paperclip className="h-4 w-4" /></Button>
+      {/* Send bar */}
+      <div className="border-t border-white/10 p-3">
+        {sendStatus === "err" && (
+          <div className="mb-2 rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 text-xs text-red-300">
+            ❌ Send failed. Check ChakraHQ API key or 24h session window.
+          </div>
+        )}
+        {sendStatus === "ok" && (
+          <div className="mb-2 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-xs text-emerald-300">
+            ✅ Message sent via WhatsApp!
+          </div>
+        )}
+        <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] p-2">
           <input
-            id="chat-input"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendOwnerNote(); } }}
-            className="min-w-0 flex-1 bg-transparent px-1 text-sm outline-none placeholder:text-slate-500"
-            placeholder="Supervise Ravi, insert owner note, or draft WhatsApp reply..."
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendReply(); } }}
+            className="min-w-0 flex-1 bg-transparent px-2 text-sm outline-none placeholder:text-slate-500"
+            placeholder="Reply via WhatsApp (Enter to send)..."
           />
-          <Button variant="ghost" size="icon" aria-label="Voice note"><Mic className="h-4 w-4" /></Button>
-          <Button size="icon" aria-label="Send" onClick={sendOwnerNote} disabled={!draft.trim() || sending}>
+          <Button variant="ghost" size="icon"><Mic className="h-4 w-4" /></Button>
+          <Button size="icon" onClick={sendReply} disabled={!draft.trim() || sending} aria-label="Send">
             {sending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </div>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ─── Chat Workspace (default view when no chat selected) ─────── */
+function ChatWorkspace() {
+  return (
+    <section className="flex h-full items-center justify-center flex-col gap-6">
+      <motion.div
+        animate={{ y: [0, -8, 0] }}
+        transition={{ duration: 3, repeat: Infinity }}
+      >
+        <MessageCircle className="h-20 w-20 text-slate-700" />
+      </motion.div>
+      <div className="text-center">
+        <p className="text-lg font-medium text-slate-400">Select a chat from the left</p>
+        <p className="mt-1 text-sm text-slate-600">All WhatsApp conversations from ChakraHQ appear there</p>
       </div>
     </section>
   );

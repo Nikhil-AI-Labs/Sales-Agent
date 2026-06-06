@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export async function GET() {
   try {
     const db = getDatabase();
-    
+
     // Read message log
     const messageLogPath = path.join(process.cwd(), "data", "runtime", "message-log.json");
     let messageLog: any[] = [];
@@ -72,9 +72,9 @@ export async function GET() {
     });
   } catch (error) {
     return NextResponse.json(
-      { 
-        ok: false, 
-        error: error instanceof Error ? error.message : "Failed to get debug info" 
+      {
+        ok: false,
+        error: error instanceof Error ? error.message : "Failed to get debug info"
       },
       { status: 500 }
     );

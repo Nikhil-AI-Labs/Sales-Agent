@@ -49,12 +49,12 @@ export async function sendSessionMessage(to: string, text: string) {
           text: { body: text },
         }),
       });
-      
+
       const data = await response.json().catch(() => ({}));
-      
+
       if (!response.ok) {
         const message = data?.error?.message ?? data?.message ?? `Chakra send failed with ${response.status}`;
-        
+
         // Retry on transient errors (5xx, rate limits)
         if (response.status >= 500 || response.status === 429) {
           lastError = new Error(message);
@@ -64,14 +64,14 @@ export async function sendSessionMessage(to: string, text: string) {
             continue;
           }
         }
-        
+
         throw new Error(message);
       }
-      
+
       return data;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-      
+
       // If it's a network error, retry
       if (error instanceof Error && error.message.includes('fetch')) {
         if (attempt < maxRetries) {
@@ -79,7 +79,7 @@ export async function sendSessionMessage(to: string, text: string) {
           continue;
         }
       }
-      
+
       // For other errors, throw immediately
       throw lastError;
     }

@@ -171,6 +171,24 @@ function initializeSchema(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_activity_created ON activity_log(created_at DESC);
   `);
 
+  // Create pending_escalations table — tracks questions sent to owner awaiting reply
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS pending_escalations (
+      id TEXT PRIMARY KEY,
+      customer_phone TEXT NOT NULL,
+      customer_name TEXT,
+      customer_id TEXT,
+      question TEXT NOT NULL,
+      holding_message TEXT,
+      status TEXT DEFAULT 'pending',
+      owner_reply TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      resolved_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_escalations_status ON pending_escalations(status);
+    CREATE INDEX IF NOT EXISTS idx_escalations_created ON pending_escalations(created_at DESC);
+  `);
+
   // Insert default price config if none exists
   const priceCount = db.prepare("SELECT COUNT(*) as count FROM price_config").get() as { count: number };
   if (priceCount.count === 0) {
