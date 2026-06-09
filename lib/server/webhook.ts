@@ -44,6 +44,9 @@ export function extractWhatsAppMessage(data: any) {
 /**
  * Customer webhook — handles inbound messages from customers
  * Ravi processes and replies
+ * 
+ * IMPORTANT: Owner phone (if configured) should use the owner webhook endpoint.
+ * This webhook only processes customer messages, not owner messages.
  */
 export async function handleCustomerInbound(rawBody: string, signature: string | null) {
   if (!verifyChakraSignature(rawBody, signature)) {
@@ -65,8 +68,16 @@ export async function handleCustomerInbound(rawBody: string, signature: string |
     return { status: 200, body: { status: "empty" } };
   }
 
-  // Everyone is a customer — no owner filtering here.
-  // Owner concept will be configured separately when owner contacts are provided.
+  // Check if this message is FROM the owner phone
+  // If so, IGNORE it in customer webhook to prevent double-processing
+  const ownerPhone = (process.env.OWNER_PHONE || "").replace(/[^\d]/g, "");
+  if (ownerPhone && inbound.phone === ownerPhone) {
+    await appendLog("customer_webhook_ignored_owner", { 
+      reason: "message from owner phone, should be handled by owner webhook",
+      phone: inbound.phone 
+    });
+    return { status: 200, body: { status: "ignored_owner_message" } };
+  }
 
   const state = await getAgentState();
   if (!state.agentEnabled || !state.raviEnabled) {

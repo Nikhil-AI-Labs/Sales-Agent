@@ -25,22 +25,33 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     
-    if (!body.basePrice3g || typeof body.basePrice3g !== "number") {
-      return NextResponse.json(
-        { ok: false, error: "Invalid basePrice3g" },
-        { status: 400 }
-      );
+    // Validate that all quality grade prices are provided
+    const requiredFields = ['basePriceJanta', 'basePriceRegular', 'basePriceSilver', 'basePriceGold', 'basePricePlatinum'];
+    for (const field of requiredFields) {
+      if (!body[field] || typeof body[field] !== "number") {
+        return NextResponse.json(
+          { ok: false, error: `Invalid ${field}` },
+          { status: 400 }
+        );
+      }
     }
     
     const db = getDatabase();
     const id = crypto.randomUUID();
     
     db.prepare(`
-      INSERT INTO price_config (id, base_price_3g, created_by, notes)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO price_config (
+        id, base_price_janta, base_price_regular, base_price_silver, 
+        base_price_gold, base_price_platinum, created_by, notes
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id,
-      body.basePrice3g,
+      body.basePriceJanta,
+      body.basePriceRegular,
+      body.basePriceSilver,
+      body.basePriceGold,
+      body.basePricePlatinum,
       body.createdBy || "owner",
       body.notes || ""
     );
@@ -52,7 +63,14 @@ export async function POST(request: Request) {
     `).run(
       crypto.randomUUID(),
       body.createdBy || "owner",
-      JSON.stringify({ basePrice3g: body.basePrice3g, notes: body.notes })
+      JSON.stringify({ 
+        janta: body.basePriceJanta,
+        regular: body.basePriceRegular,
+        silver: body.basePriceSilver,
+        gold: body.basePriceGold,
+        platinum: body.basePricePlatinum,
+        notes: body.notes 
+      })
     );
     
     const config = db.prepare("SELECT * FROM price_config WHERE id = ?").get(id);

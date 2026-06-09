@@ -108,11 +108,16 @@ function initializeSchema(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_quotes_approved ON quotes(owner_approved);
   `);
 
-  // Create price_config table
+  // Create price_config table for fabric pricing (13" base prices for all quality grades)
   db.exec(`
     CREATE TABLE IF NOT EXISTS price_config (
       id TEXT PRIMARY KEY,
-      base_price_3g REAL NOT NULL,
+      base_price_3g REAL,  -- Legacy field (kept for backward compatibility)
+      base_price_janta REAL NOT NULL DEFAULT 0,
+      base_price_regular REAL NOT NULL DEFAULT 0,
+      base_price_silver REAL NOT NULL DEFAULT 0,
+      base_price_gold REAL NOT NULL DEFAULT 0,
+      base_price_platinum REAL NOT NULL DEFAULT 0,
       effective_date TEXT DEFAULT (datetime('now')),
       created_by TEXT,
       notes TEXT,
