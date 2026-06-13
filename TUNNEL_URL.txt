@@ -1,0 +1,61 @@
+==============================================
+CLOUDFLARE TUNNEL ACTIVE
+==============================================
+
+Your Public Tunnel URL:
+https://weather-reel-quantity-windsor.trycloudflare.com
+
+==============================================
+CHAKRAHQ WEBHOOK CONFIGURATION
+==============================================
+
+Copy these URLs into your ChakraHQ dashboard:
+
+1. Customer Webhook URL:
+   https://weather-reel-quantity-windsor.trycloudflare.com/api/webhook/customer
+
+2. Owner Webhook URL:
+   https://weather-reel-quantity-windsor.trycloudflare.com/api/webhook/owner
+
+3. Webhook Secret: (leave blank or copy from .env.local if you have one)
+
+==============================================
+IMPORTANT URLS
+==============================================
+
+Local Frontend:
+http://localhost:3000
+
+Debug Dashboard:
+http://localhost:3000/debug
+
+Public Debug Dashboard:
+https://weather-reel-quantity-windsor.trycloudflare.com/debug
+
+==============================================
+TEST YOUR SETUP
+==============================================
+
+Business Number: +1 (555) 951-8329
+Your Phone: 919455281616
+
+After configuring ChakraHQ webhooks:
+1. Send WhatsApp message from 919455281616 to +1 (555) 951-8329
+2. Check debug dashboard: http://localhost:3000/debug
+3. You should see:
+   - customer_inbound event
+   - New customer created
+   - Ravi's response
+   - Reply sent to WhatsApp
+
+==============================================
+KEEPING IT RUNNING
+==============================================
+
+DO NOT CLOSE:
+- The PowerShell window running "npm run dev"
+- The PowerShell window running "cloudflared tunnel"
+
+If you close these, webhooks will stop working.
+
+==============================================

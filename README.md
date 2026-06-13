@@ -1,436 +1,121 @@
-# Anjani AI Sales OS
+## Anjani AI Sales OS
 
-Owner dashboard and WhatsApp agent console for Anjani Interweave fabric sales.
+This app connects WhatsApp, ChakraHQ, Sarvam, Ravi AI, Guru AI, and the local database.
 
-The current app is a Next.js control layer for:
+### How The System Works
 
-- Ravi AI: customer-facing WhatsApp sales assistant.
-- Guru AI: owner-facing learning and escalation assistant.
-- ChakraHQ: WhatsApp transport for inbound webhooks and outbound messages.
-- Sarvam: LLM for Indian-language customer and owner conversations.
-- Runtime controls: whole-agent on/off, Ravi standby, auto-reply, and outbound sales mode.
-- Owner templates: reusable local templates plus ChakraHQ template submission/listing.
+1. A customer sends a WhatsApp message to the ChakraHQ business number, for example `+1 (555) 951-8329`.
+2. ChakraHQ forwards that inbound message to this Next.js backend webhook.
+3. The customer webhook route is:
+   `POST /api/webhook/customer`
+4. The backend extracts the customer phone number, name, message text, and message id.
+5. Ravi checks runtime state:
+   - `agentEnabled` must be `true`
+   - `raviEnabled` must be `true`
+   - `autoSendRaviReplies` must be `true` if you want WhatsApp replies to be sent automatically
+6. Ravi stores the customer message in SQLite.
+7. Ravi uses Sarvam and the local knowledge base to generate the reply.
+8. If the reply can be sent, the backend calls ChakraHQ `/messages` and sends the WhatsApp response back to the customer.
+9. If Ravi does not know a critical business fact, it creates a Guru escalation and sends a short holding reply such as: `Haan, main check karke abhi batata hoon.`
+10. Guru learns from the owner and stores reusable memory in the knowledge base.
 
-## Current Status
+### Required Environment Variables
 
-This is a working Next.js prototype/control plane, not yet the final production database backend.
+Set these in `.env.local`:
 
-Implemented now:
-
-- Dashboard UI with customer chats, Guru, quotes, production, pricing, templates, knowledge, activity, analytics, and settings.
-- `GET/POST /api/agent/state` for runtime toggle state.
-- `POST /api/sarvam/chat` for Ravi/Guru prompt testing.
-- `POST /api/chakra/send` for session/template sends.
-- `GET/POST /api/chakra/templates` for ChakraHQ template list/create.
-- `GET/POST /api/templates` for local owner template storage.
-- `GET/POST /api/webhook/customer` for Chakra customer inbound.
-- `GET/POST /api/webhook/owner` for owner/Guru inbound.
-- Local JSON runtime state in `data/runtime`.
-- Strict Ravi and Guru system prompts with fabric pricing gates and escalation behavior.
-
-Not implemented yet:
-
-- PostgreSQL schema/migrations.
-- Real customer/enquiry/quote persistence.
-- Excel import for `data/clients.xlsx`.
-- Deterministic backend price engine API.
-- Production-capacity delivery calculation.
-- PI/bill generation.
-- WebSocket live feed.
-- Lead generation. This is intentionally out of v1 scope.
-
-## Run Locally
-
-Install dependencies:
-
-```bash
-npm install
-```
-
-Run development server:
-
-```bash
-npm run dev
-```
-
-Open:
-
-```text
-http://localhost:3000
-```
-
-Build production:
-
-```bash
-npm run build
-```
-
-Start production server after a successful build:
-
-```bash
-npm start
-```
-
-Important: `npm start` runs `next start` and requires a completed production build in `.next-local` because `next.config.ts` sets:
-
-```ts
-distDir: ".next-local"
-```
-
-If `npm start` says it cannot find a production build, run `npm run build` first and let it finish.
-
-## Environment
-
-Create `.env.local` from `.env.local.example`.
-
-Required for ChakraHQ:
-
-```bash
+```env
 CHAKRA_API_KEY=...
 CHAKRA_PLUGIN_ID=...
 CHAKRA_WABA_ID=...
 CHAKRA_PHONE_ID=...
 CHAKRA_API_VERSION=v22.0
-```
 
-Required for Sarvam:
-
-```bash
 SARVAM_API_KEY=...
 SARVAM_MODEL=sarvam-105b
-```
 
-Owner and storage:
-
-```bash
-PRODUCTION_TEAM_PHONE=91XXXXXXXXXX
-CLIENTS_EXCEL_PATH=data/clients.xlsx
+PRODUCTION_TEAM_PHONE=919455281616
+DATABASE_URL=sqlite:///data/sales_agent.db
 CHAKRA_WEBHOOK_SECRET=
-DATABASE_URL=sqlite+aiosqlite:///data/sales_agent.db
 ```
 
-For production, use PostgreSQL on the owner server:
+`PRODUCTION_TEAM_PHONE` is the owner/team number. It is not the ChakraHQ business number. Customers message the ChakraHQ business number; the owner/team number is used for internal Guru/owner workflows.
 
-```bash
-DATABASE_URL=postgresql+asyncpg://anjani_user:strong_password@127.0.0.1:5432/anjani
+### ChakraHQ Webhook Setup
+
+The backend must be publicly reachable by ChakraHQ. A local browser URL like `http://localhost:3000` or a private LAN URL will not work for real WhatsApp webhooks unless ChakraHQ can reach it.
+
+Configure ChakraHQ customer webhook URL:
+
+```text
+https://YOUR_PUBLIC_DOMAIN/api/webhook/customer
 ```
 
-Do not commit `.env.local`. It is ignored by git.
+Configure owner webhook URL only if you are routing owner messages separately:
 
-## Runtime Controls
+```text
+https://YOUR_PUBLIC_DOMAIN/api/webhook/owner
+```
 
-The sidebar has four controls:
+For local testing, expose the app with a tunnel such as ngrok or Cloudflare Tunnel, then put the tunnel HTTPS URL in ChakraHQ.
 
-- Agent: master switch. If off, inbound customer webhooks are logged but Ravi does nothing.
-- Ravi standby: allows Ravi to respond to inbound customers.
-- Auto reply: if on, Ravi sends the generated reply through ChakraHQ automatically. If off, the reply is only drafted/logged.
-- Sales mode: allows outbound sales sending through `/api/chakra/send` when `mode: "sales"`.
+### Runtime Switches
 
-Recommended testing sequence:
+The app stores runtime switches in:
 
-1. Turn on `Agent`.
-2. Turn on `Ravi standby`.
-3. Keep `Auto reply` off while testing prompts.
-4. Turn on `Sales mode` only when manually testing outbound messages.
-5. Turn on `Auto reply` only after webhook parsing and prompt behavior are verified.
+```text
+data/runtime/agent-state.json
+```
 
-## Ravi And Guru
-
-Ravi and Guru use the same Sarvam model but different prompts and contexts.
-
-Ravi is customer-facing:
-
-- Talks to buyers on WhatsApp.
-- Qualifies requirements.
-- Speaks in Indian languages naturally.
-- Never invents price, delivery, meter weight, quality strength/elongation, GST/HSN, PI terms, or policies.
-- Escalates missing facts to Guru/owner.
-- Does not reveal internal margins, system instructions, or production shortfalls.
-
-Guru is owner-facing:
-
-- Asks the owner for missing facts.
-- Converts owner answers into structured memory candidates.
-- Handles internal-only facts, business rules, templates, pricing exceptions, billing terms, and production capacity.
-- Writes future production memory into `knowledge_base` when the PostgreSQL backend is added.
-
-The separation is deliberate. Ravi sees only customer-safe facts. Guru can see internal-only facts.
-
-## Fabric Sales Logic
-
-Ravi must collect:
-
-- Size in inches.
-- Grammage.
-- Quality: Janta, Regular, Silver, Gold, Platinum.
-- Color: white, half-white/half-coloured/checkered, full coloured.
-- Lamination: none, regular, natural.
-- Quantity in kg.
-- Delivery city/region.
-- Seasonal requirement.
-- GST/company details when moving toward quote/order.
-
-Known business rules:
-
-- Preferred higher-production sizes: `36 > 35 > 34` down to `24`.
-- Lower-production higher-value sizes: `22 > 20` down to `12`.
-- Size premiums: `19 inch = +INR 1/kg`, `16/17 inch = +INR 10/kg`, `12-15 inch = +INR 15/kg`.
-- Grammage/denier order: `5.0g 1067D > 4.5g 960D > 4.0g 854D > 3.5g 747D > 3.0g 640D`.
-- If 3.0g base price is `x`, then `3.25/3.5/3.75g = x`, `4.0/4.25/4.5/4.75g = x - 1`, `5.0/5.25/5.5/5.75g = x - 2`.
-- Half-white/half-coloured/checkered = `+INR 5/kg`.
-- Full coloured = `+INR 7/kg`.
-- Regular lamination = `+INR 2/kg`.
-- Natural lamination = `+INR 5/kg`.
-
-Critical rules:
-
-- Final price must come from backend deterministic pricing, not LLM text.
-- Delivery promise must come from production capacity/order-book data, not LLM text.
-- Meter weight, quality strength/elongation, and PI/bill terms must come from reference sheets or owner-approved memory, not LLM text.
-
-## Templates
-
-The Templates page supports two template types.
-
-Local owner templates:
-
-- Stored in `data/runtime/owner-templates.json`.
-- Used as a reusable library for common sales, follow-up, seasonal enquiry, and quote reminder messages.
-- Save with `Save Local`.
-- Click a saved template to load it into the editor and outbound message box.
-
-ChakraHQ templates:
-
-- Submit with `Submit Template`.
-- List approved/submitted templates with `List Templates`.
-- Use approved templates for WhatsApp template sends where Chakra/Meta requires them.
-
-When the future PostgreSQL backend is added, local templates should move into `knowledge_base` with `type = template`.
-
-## API Routes
-
-### `/api/agent/state`
-
-`GET` returns runtime state, config status, and recent logs.
-
-`POST` accepts:
+For Ravi to reply automatically to inbound WhatsApp messages, this file should contain:
 
 ```json
 {
   "agentEnabled": true,
   "raviEnabled": true,
-  "autoSendRaviReplies": false,
-  "outboundSalesEnabled": false
+  "outboundSalesEnabled": false,
+  "autoSendRaviReplies": true
 }
 ```
 
-### `/api/sarvam/chat`
+`outboundSalesEnabled` only controls manual outbound sales messages. It is intentionally separate from inbound customer replies.
 
-Tests Sarvam with Ravi or Guru:
+### Debugging No WhatsApp Reply
 
-```json
-{
-  "persona": "ravi",
-  "text": "Customer asks for 36 inch 3.5g silver laminated price."
-}
-```
+Check these in order:
 
-Use `"persona": "guru"` for owner/internal behavior.
+1. Open `data/runtime/message-log.json`.
+2. If there is no `customer_inbound` entry for your real phone message, ChakraHQ is not reaching this backend. Fix the public webhook URL.
+3. If there is `ravi_skipped_disabled`, enable `agentEnabled` and `raviEnabled`.
+4. If there is `ravi_processed` but no WhatsApp reply, check for `ravi_whatsapp_send_failed`.
+5. If `ravi_whatsapp_send_failed` appears, the issue is in Chakra credentials, phone id, plugin id, or the session message window.
+6. If Sarvam fails, check `SARVAM_API_KEY` and `SARVAM_MODEL`.
 
-### `/api/chakra/send`
-
-Sends WhatsApp through ChakraHQ.
-
-Session text:
-
-```json
-{
-  "to": "91XXXXXXXXXX",
-  "text": "Message body",
-  "mode": "sales"
-}
-```
-
-Template:
-
-```json
-{
-  "to": "91XXXXXXXXXX",
-  "templateName": "anjani_fabric_intro_en",
-  "language": "en",
-  "parameters": ["Customer Name"]
-}
-```
-
-If `mode` is `sales`, the server blocks sending unless Sales mode is on.
-
-### `/api/chakra/templates`
-
-`GET` lists ChakraHQ templates.
-
-`POST` creates/submits a ChakraHQ template:
-
-```json
-{
-  "name": "anjani_fabric_intro_en",
-  "language": "en",
-  "category": "UTILITY",
-  "body": "Hello {{1}}, this is Ravi AI from Anjani Interweave..."
-}
-```
-
-### `/api/templates`
-
-`GET` lists local owner templates.
-
-`POST` saves a local owner template:
-
-```json
-{
-  "name": "seasonal_requirement_followup_hi",
-  "language": "hi",
-  "category": "UTILITY",
-  "body": "Namaste {{name}}, aapka seasonal fabric requirement..."
-}
-```
-
-### `/api/webhook/customer`
-
-ChakraHQ customer webhook endpoint.
-
-Behavior:
-
-- Verifies HMAC if `CHAKRA_WEBHOOK_SECRET` is set.
-- Extracts WhatsApp text/interactive/media marker.
-- Logs inbound.
-- If Agent or Ravi standby is off, returns without replying.
-- Calls Sarvam with Ravi prompt.
-- If Auto reply is on, sends Ravi reply through ChakraHQ.
-
-### `/api/webhook/owner`
-
-Owner/Guru webhook endpoint.
-
-Behavior:
-
-- Verifies HMAC if configured.
-- Extracts owner message.
-- Calls Sarvam with Guru prompt.
-- Sends Guru reply back through ChakraHQ when phone is present.
-
-## Current Storage
-
-Runtime data is stored as JSON:
+Useful local endpoints:
 
 ```text
-data/runtime/agent-state.json
-data/runtime/message-log.json
-data/runtime/owner-templates.json
+GET  /api/test/status
+POST /api/test/webhook
+GET  /api/agent/state
+POST /api/agent/state
 ```
 
-This is acceptable for local prototype testing. It is not the final production storage.
+Example simulated customer webhook:
 
-## Production Database Plan
-
-Use PostgreSQL on the same owner server as the agent.
-
-Recommended deployment:
-
-- Next.js or future backend app listens behind nginx HTTPS.
-- PostgreSQL listens only on `127.0.0.1:5432`.
-- ChakraHQ webhooks point to public HTTPS routes.
-- Customer data, chat history, quotes, production capacity, and knowledge stay on the owner server.
-
-Minimum production tables:
-
-- `customers`: UUID, phone, name, company, GST, email, city, state, language, stage.
-- `chat_messages`: customer/owner/dashboard messages by channel and role.
-- `enquiries`: size, grammage, quality, color, lamination, quantity, city, seasonal months, status.
-- `quotes`: exact price snapshot, premiums, unit price, total amount, validity, owner approval.
-- `price_config`: owner daily base 3.0g price.
-- `knowledge_base`: key, value, type, scope, source, timestamps.
-- `production_capacity`: date, size, grammage, planned/booked/available kg.
-- `activity_log`: audit trail.
-- `owner_sessions`: Guru conversation history.
-
-Removed from v1:
-
-- `leads`
-- `lead_sources`
-- IndiaMART/portal ingestion
-- scraping
-- campaign automation
-
-## Future Backend Work
-
-Next implementation steps:
-
-1. Add PostgreSQL connection and migrations.
-2. Import Excel customers from `CLIENTS_EXCEL_PATH`.
-3. Move runtime JSON to database tables.
-4. Implement deterministic pricing API.
-5. Implement production-capacity delivery API.
-6. Add knowledge-base save/retrieve APIs for Guru.
-7. Connect Ravi response flow to customer history and enquiry state.
-8. Add owner approval workflow before quote send.
-9. Add PI/bill generation from owner-approved terms.
-
-## Troubleshooting
-
-### `Could not find a production build in the '.next-local' directory`
-
-Run:
-
-```bash
-npm run build
-npm start
+```json
+{
+  "type": "customer",
+  "phone": "919455281616",
+  "name": "Test Customer",
+  "text": "What is the price of 24 inch regular bags?"
+}
 ```
 
-Do not run `npm start` before a successful build.
+Send that to:
 
-### `SyntaxError: Unterminated string in JSON`
-
-Likely causes:
-
-- Interrupted Next build/dev server while it was patching lock/build files.
-- Corrupted `.next-local` build output.
-- Corrupted `package-lock.json`.
-
-Fix:
-
-```bash
-npm install
-npm run build
+```text
+POST /api/test/webhook
 ```
 
-If it still happens, delete `.next-local` and rebuild.
+If the simulated webhook works but real WhatsApp does not, the backend code is working and the remaining issue is ChakraHQ webhook delivery or public URL configuration.
 
-### Chakra send fails
-
-Check:
-
-- `CHAKRA_API_KEY`
-- `CHAKRA_PLUGIN_ID`
-- `CHAKRA_PHONE_ID`
-- `CHAKRA_WABA_ID`
-- `CHAKRA_API_VERSION`
-- ChakraHQ plugin is active and the endpoint format matches the provider account.
-
-### Sarvam chat fails
-
-Check:
-
-- `SARVAM_API_KEY`
-- `SARVAM_MODEL`
-- Internet access from the server.
-- Sarvam account quota and model availability.
-
-### Ravi receives but does not reply
-
-Check runtime controls:
-
-- Agent must be on.
-- Ravi standby must be on.
-- Auto reply must be on for direct WhatsApp sends.
-
-With Auto reply off, Ravi drafts/logs only.
+The Target is to move from stock to sale to MADE TO ORDER BASIS , the agent has to enquire from the client there requirement across grammage , sizes , color and quantity , also enquire about the seasonal requirement. (the agent can enquire and market that we are into other product categories but at the same time the focus of FABRIC SALE AGENT IS SELLING PP WOVEN FABRIC ROLL. FABRIC SALE IS BASICALLY BASED ON THE FOLLOWING PARAMETERS Size in inches ( our preferred are ) = 36 > 35 > 34 upto 24 ( highest production based ) and 22 > 20 > upto 12 ( lowest production , higher in value terms ) (19 Inches includes a Premium of 1₹ per kg)(16' & 17' Inches a premium of 10₹ per kg)(12' & 15' inch premium of 15₹ per kg) Grammage ( Highest Denier First ) = 5.0 Gram (1067 denier) > 4.5 Gram (960 denier) > 4.0 Gram (854 denier) > 3.5 Gram (747 denier) > 3.0 Gram (640 denier), If price of 3.0 gram is x then price for 3.5 gram and 3.25 gram and 3.75 gram remain same also then price of 4.0 gram and 4.25 gram and 4.5 gram and 4.75 gram is (x-1₹) , 5 gram and 5.25 gram and 5.5 gram and 5.75 gram is (x-2₹) Quality ( Market Terminologies ) = Janta / Regular / Silver / Gold / Platinum , they are based on strength and elongation of the same for which a seperate sheet has been attached for reference , The Meter weight of the unlaminated and laminated fabric per size per grammage and per qualtiy type is also attached for reference , Client usually asks for meter weight of fabric for both laminated and unlaminated fabric a sheet for reference has been attached ,The unit of measurement is in KG and accordingly the format for BILL GENERATION is attached for reference.For the delivery time we need to cross reference the data from the production detailed page which we already have. COLOR OF FABRIC = Fabric is Sold Mainly in white color and also in different colors as per clients request ( for half white and half coloured cheqeured fabric we charge a premium of 5₹ per kg and for full colored fabric we charge a premium of 7₹ per kg) COATED / NON COATED = mainly in unlaminated and also sold with lamination as per client request and specification ( there are two qualities of lamination mainly regular lamination for which we charge a premium of 2₹ and also natural lamination for which we charge a premium of 5₹ per kg ) The Current daily price will be shared by me to the agent and then accordingly it has to proceed further till the time it doesnt know how to compute the prices , The price for a certain grade will be made so that the agent can then compute the same from the above mentioned conditions , There are multiple ways of making the sale to a customer by enquiring different details like Quality wise ( same quality type means less inventory , less downtime and increased efficiency ) , Size Wise ( where same sizes are sold so to lower inventory ) , Grammage wise ( heavier denier means higher output ) and finaly region wise ( to acoomodate more clients in same region so as to lower the transport cost). ALSO THE SALES AGENT HAS TO A FLIPSIDE BACKEND WHICH IS A TRADING AGENT WHICH WILL PROCURE THE SAME ABOVE FROM OTHER MANUFACTURERS AS PER THE CLIENTS REQUIREMENT OF FABRIC ( mandatory condition is to make sure our order book is complete for the next 30 days) , THE IDEA IS TO TAKE STOCK FROM OTHER MANUFACTURERS AND SELL THEM FROM OUR END. GENERATE LEADS FROM EXISTING DATA AND INDIA MART AND OTHER SIMILAR PORTALS AS WELL All Offered Prices are ex-Factory basis only , Taxation and Transportation are seperate. Non Usual Requirment in terms of Color and Grammage which not mentioned in the Fabric_knowledge_base & Natural Fabric category (this is also a category of fabric in which they are no to minimum addivities as its apperance is transparent , it can be any grammage and size but with non additives) and size below 22 Inches and also **TAXATION AND TERMS OF DELIVERY INCLUDING TRANSPORT ** then the confirmation has to be taken from the human in the loop ( Hierarchy would be Puneet > Dev > Manager) before confirming anything to the client. The Usual Language are Hindi , Gujarati , Tamil , Malayalam , Marathi , Telugu , Kannada.

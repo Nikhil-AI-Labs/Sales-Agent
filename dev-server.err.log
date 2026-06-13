@@ -1,0 +1,84 @@
+ ⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of C:\Users\Nikhil1616\Desktop\Sales_Agent\SALES_AGENT\package-lock.json as the root directory.
+ To silence this warning, set `outputFileTracingRoot` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/output#caveats for more information.
+ Detected additional lockfiles: 
+   * C:\Users\Nikhil1616\Desktop\Sales_Agent\SALES_AGENT\anjani-ai-sales-os\package-lock.json
+
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Nikhil1616\Desktop\Sales_Agent\SALES_AGENT\anjani-ai-sales-os\.next\server\app\api\activity\route.js'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Nikhil1616\\Desktop\\Sales_Agent\\SALES_AGENT\\anjani-ai-sales-os\\.next\\server\\app\\api\\activity\\route.js',
+  page: '/api/activity'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Nikhil1616\Desktop\Sales_Agent\SALES_AGENT\anjani-ai-sales-os\.next\server\app\api\knowledge\route.js'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Nikhil1616\\Desktop\\Sales_Agent\\SALES_AGENT\\anjani-ai-sales-os\\.next\\server\\app\\api\\knowledge\\route.js',
+  page: '/api/knowledge'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Nikhil1616\Desktop\Sales_Agent\SALES_AGENT\anjani-ai-sales-os\.next\server\app\api\stats\route.js'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Nikhil1616\\Desktop\\Sales_Agent\\SALES_AGENT\\anjani-ai-sales-os\\.next\\server\\app\\api\\stats\\route.js',
+  page: '/api/stats'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Nikhil1616\Desktop\Sales_Agent\SALES_AGENT\anjani-ai-sales-os\.next\server\app\api\chakra\chats\route.js'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Nikhil1616\\Desktop\\Sales_Agent\\SALES_AGENT\\anjani-ai-sales-os\\.next\\server\\app\\api\\chakra\\chats\\route.js',
+  page: '/api/chakra/chats'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Nikhil1616\Desktop\Sales_Agent\SALES_AGENT\anjani-ai-sales-os\.next\server\app\api\agent\state\route.js'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Nikhil1616\\Desktop\\Sales_Agent\\SALES_AGENT\\anjani-ai-sales-os\\.next\\server\\app\\api\\agent\\state\\route.js',
+  page: '/api/agent/state'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Nikhil1616\Desktop\Sales_Agent\SALES_AGENT\anjani-ai-sales-os\.next\server\app\api\activity\route.js'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Nikhil1616\\Desktop\\Sales_Agent\\SALES_AGENT\\anjani-ai-sales-os\\.next\\server\\app\\api\\activity\\route.js',
+  page: '/api/activity'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Nikhil1616\Desktop\Sales_Agent\SALES_AGENT\anjani-ai-sales-os\.next\server\app\api\activity\route.js'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Nikhil1616\\Desktop\\Sales_Agent\\SALES_AGENT\\anjani-ai-sales-os\\.next\\server\\app\\api\\activity\\route.js',
+  page: '/api/activity'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Nikhil1616\Desktop\Sales_Agent\SALES_AGENT\anjani-ai-sales-os\.next\server\app\api\chakra\chats\route.js'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Nikhil1616\\Desktop\\Sales_Agent\\SALES_AGENT\\anjani-ai-sales-os\\.next\\server\\app\\api\\chakra\\chats\\route.js',
+  page: '/api/chakra/chats'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Nikhil1616\Desktop\Sales_Agent\SALES_AGENT\anjani-ai-sales-os\.next\server\app\api\agent\state\route.js'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Nikhil1616\\Desktop\\Sales_Agent\\SALES_AGENT\\anjani-ai-sales-os\\.next\\server\\app\\api\\agent\\state\\route.js',
+  page: '/api/agent/state'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Nikhil1616\Desktop\Sales_Agent\SALES_AGENT\anjani-ai-sales-os\.next\server\app\api\chakra\chats\route.js'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Nikhil1616\\Desktop\\Sales_Agent\\SALES_AGENT\\anjani-ai-sales-os\\.next\\server\\app\\api\\chakra\\chats\\route.js',
+  page: '/api/chakra/chats'
+}
+ ⨯ [Error: ENOENT: no such file or directory, open 'C:\Users\Nikhil1616\Desktop\Sales_Agent\SALES_AGENT\anjani-ai-sales-os\.next\server\app\api\agent\state\route.js'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\Nikhil1616\\Desktop\\Sales_Agent\\SALES_AGENT\\anjani-ai-sales-os\\.next\\server\\app\\api\\agent\\state\\route.js',
+  page: '/api/agent/state'
+}
