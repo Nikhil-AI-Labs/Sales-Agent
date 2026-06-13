@@ -1,0 +1,105 @@
+[
+  {
+    "id": "edf09a9c-e520-4895-a8c0-fac875251a24",
+    "type": "chakra_event_ignored",
+    "payload": {
+      "event": "status"
+    },
+    "createdAt": "2026-06-12T11:45:20.752Z"
+  },
+  {
+    "id": "c32b158c-900a-4c28-b8fa-909314189f5c",
+    "type": "owner_event_ignored",
+    "payload": {
+      "event": "status"
+    },
+    "createdAt": "2026-06-12T11:45:20.737Z"
+  },
+  {
+    "id": "16ec707c-1579-44c8-a146-a494a80bd5c6",
+    "type": "chakra_event_ignored",
+    "payload": {
+      "event": "status"
+    },
+    "createdAt": "2026-06-12T11:45:20.271Z"
+  },
+  {
+    "id": "e4a57096-70b9-4da2-ac99-aeda04892c14",
+    "type": "owner_event_ignored",
+    "payload": {
+      "event": "status"
+    },
+    "createdAt": "2026-06-12T11:45:20.215Z"
+  },
+  {
+    "id": "a8837c57-c332-46df-9b34-0b21ed270554",
+    "type": "ravi_processed",
+    "payload": {
+      "inbound": {
+        "phone": "919455281616",
+        "name": "Nikhil Pathak",
+        "text": "Okay as of now tell me about your products"
+      },
+      "result": {
+        "response": "Sure! We specialize in high-quality PP woven fabric rolls that you can use to make your own bags.\n\nWhat size and quantity are you looking for?",
+        "escalated": false
+      }
+    },
+    "createdAt": "2026-06-12T11:45:16.323Z"
+  },
+  {
+    "id": "65bb5431-bdf2-4da5-adf9-dbc466b80209",
+    "type": "ravi_whatsapp_sent",
+    "payload": {
+      "phone": "919455281616",
+      "response": "Sure! We specialize in high-quality PP woven fabric rolls that you can use to make your own bags.\n\nWhat size and quantity are you looking for?",
+      "result": {
+        "_data": {
+          "whatsappMessageId": "wamid.HBgMOTE5NDU1MjgxNjE2FQIAERgSREZGMTg1MjU0RkUxQTVDRjM0AA=="
+        }
+      }
+    },
+    "createdAt": "2026-06-12T11:45:16.317Z"
+  },
+  {
+    "id": "5fc7d163-5998-4103-9956-377741b9dc75",
+    "type": "owner_webhook_ignored",
+    "payload": {
+      "reason": "not from owner phone",
+      "from": "919455281616"
+    },
+    "createdAt": "2026-06-12T11:45:12.708Z"
+  },
+  {
+    "id": "ae157590-0fe0-4bb7-9338-5f948501ef1a",
+    "type": "owner_inbound",
+    "payload": {
+      "phone": "919455281616",
+      "name": "Nikhil Pathak",
+      "type": "text",
+      "text": "Okay as of now tell me about your products",
+      "messageId": "wamid.HBgMOTE5NDU1MjgxNjE2FQIAEhggQUNDRkYwRjBBQzJFRkY3NzA5RTAxRDI3NTQ0MjU4QzAA"
+    },
+    "createdAt": "2026-06-12T11:45:12.706Z"
+  },
+  {
+    "id": "ba845205-643f-4f88-875e-796e3e4ede63",
+    "type": "customer_inbound",
+    "payload": {
+      "phone": "919455281616",
+      "name": "Nikhil Pathak",
+      "type": "text",
+      "text": "Okay as of now tell me about your products",
+      "messageId": "wamid.HBgMOTE5NDU1MjgxNjE2FQIAEhggQUNDRkYwRjBBQzJFRkY3NzA5RTAxRDI3NTQ0MjU4QzAA"
+    },
+    "createdAt": "2026-06-12T11:45:12.644Z"
+  },
+  {
+    "id": "dd10a8fa-de68-4d83-9414-d04e202c272f",
+    "type": "chakra_event_ignored",
+    "payload": {
+      "event": "status"
+    },
+    "createdAt": "2026-06-12T11:44:57.938Z"
+  }
+]

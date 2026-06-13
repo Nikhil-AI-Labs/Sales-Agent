@@ -1,0 +1,95 @@
+
+> anjani-ai-sales-os@0.1.0 dev
+> next dev
+
+   ▲ Next.js 15.5.18
+   - Local:        http://localhost:3000
+   - Network:      http://10.14.62.64:3000
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 2.8s
+ ○ Compiling /api/debug/webhooks ...
+ ✓ Compiled /api/debug/webhooks in 1898ms (307 modules)
+ GET /api/debug/webhooks 200 in 2315ms
+ GET /api/agent/state 200 in 2334ms
+ ✓ Compiled /api/chakra/send in 394ms (309 modules)
+ GET /api/chakra/send 200 in 1531ms
+   Reload env: .env.local
+ ✓ Compiled in 295ms (195 modules)
+ ○ Compiling /api/debug/webhooks ...
+ ✓ Compiled /api/debug/webhooks in 736ms (314 modules)
+ GET /api/debug/webhooks 200 in 888ms
+ GET /api/webhook/customer 200 in 910ms
+ ✓ Compiled /api/test/status in 202ms (316 modules)
+ GET /api/test/status 200 in 279ms
+ ✓ Compiled /api/chakra/send in 92ms (123 modules)
+ GET /api/chakra/send 200 in 1085ms
+ ○ Compiling / ...
+ ✓ Compiled / in 5.7s (2588 modules)
+ GET / 200 in 6697ms
+ ○ Compiling /api/chakra/chats ...
+ ✓ Compiled /api/chakra/chats in 578ms (1355 modules)
+ ✓ Compiled in 2.3s (1249 modules)
+ GET /api/activity?limit=5 200 in 3326ms
+ GET /api/knowledge?scope=all 200 in 3346ms
+ GET /api/stats 200 in 3394ms
+ GET /api/agent/state 200 in 3463ms
+ GET / 200 in 156ms
+ GET /api/chakra/chats?limit=30 200 in 4481ms
+ GET /api/stats 200 in 163ms
+ GET /api/activity?limit=5 200 in 227ms
+ GET /api/knowledge?scope=all 200 in 245ms
+ GET /api/agent/state 200 in 261ms
+ GET /api/chakra/chats?limit=30 200 in 835ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 1519ms (2605 modules)
+ GET /api/stats 404 in 2360ms
+ GET /api/chakra/chats?limit=30 404 in 2356ms
+ GET /api/knowledge?scope=all 404 in 2356ms
+ GET /api/agent/state 404 in 2360ms
+ GET /api/activity?limit=5 404 in 2359ms
+ ○ Compiling /api/chakra/messages ...
+ ✓ Compiled /api/chakra/messages in 1677ms (2608 modules)
+ GET /api/chakra/messages?chatId=c82795ac-7bd6-4ba0-adba-79a38081f80b&limit=60 200 in 2624ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 4.7s (2955 modules)
+ GET / 200 in 2829ms
+ GET /api/activity?limit=5 500 in 7804ms
+ GET /api/knowledge?scope=all 500 in 7806ms
+ GET /api/stats 500 in 7811ms
+ GET /api/chakra/chats?limit=30 500 in 7811ms
+ GET /api/agent/state 500 in 7829ms
+ GET / 200 in 488ms
+ GET /api/activity?limit=5 500 in 403ms
+ GET /api/activity?limit=5 500 in 337ms
+ GET /api/chakra/chats?limit=30 500 in 516ms
+ GET /api/agent/state 500 in 512ms
+ GET /api/chakra/chats?limit=30 500 in 445ms
+ GET /api/agent/state 500 in 445ms
+ GET / 200 in 671ms
+ GET / 200 in 225ms
+ GET / 200 in 161ms
+ ○ Compiling /debug ...
+ ✓ Compiled /debug in 2.2s (2825 modules)
+ GET /debug 200 in 2617ms
+ GET /debug 200 in 123ms
+ ○ Compiling /api/webhook/customer ...
+ ✓ Compiled /api/webhook/customer in 717ms (1468 modules)
+ GET /api/webhook/customer 200 in 922ms
+ ○ Compiling /api/webhook/owner ...
+ ✓ Compiled /api/webhook/owner in 703ms (2860 modules)
+ GET /api/webhook/owner 200 in 790ms
+   Reload env: .env.local
+ ✓ Compiled in 557ms (2819 modules)
+ ✓ Compiled in 431ms (1406 modules)
+ ✓ Compiled in 210ms (1406 modules)
+ ✓ Compiled in 1890ms (2835 modules)
+ ✓ Compiled in 1121ms (2835 modules)
+ ✓ Compiled in 895ms (2835 modules)
+ ✓ Compiled in 947ms (2835 modules)
+ ✓ Compiled in 1115ms (2835 modules)
+ ✓ Compiled in 1113ms (2835 modules)
+ ✓ Compiled in 275ms (1406 modules)
+ ✓ Compiled in 302ms (1406 modules)
+[?25h
